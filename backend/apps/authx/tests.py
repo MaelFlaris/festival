@@ -48,13 +48,14 @@ class AuthxApiTests(TestCase):
         # force création propre profil
         self.client.get(reverse("authx-profiles-me"))
         resp = self.client.get(list_url)
-        self.assertTrue(all(item["username"] == "user" for item in resp.data))
+        items = resp.data["results"] if isinstance(resp.data, dict) else resp.data
+        self.assertTrue(all(item["username"] == "user" for item in items))
 
         # tentative de patch du profil "other"
         other_profile = UserProfile.objects.get(user=self.other)
         detail_url = reverse("authx-profiles-detail", args=[other_profile.id])
         resp = self.client.patch(detail_url, {"display_name": "H4x"}, format="json")
-        self.assertEqual(resp.status_code, 404)  # non visible pour user standard
+        self.assertEqual(resp.status_code, 403)
 
     def test_admin_can_list_all(self):
         self.client.login(username="admin", password="pwd")

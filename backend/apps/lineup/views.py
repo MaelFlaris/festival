@@ -75,7 +75,7 @@ class ArtistViewSet(viewsets.ModelViewSet):
             cache.set(key, data, cache_ttl)
         return Response(data)
 
-    @action(methods=["GET"], detail=True, url_path="compatibility")
+    @action(methods=["GET"], detail=True, url_path="compatibility", filter_backends=[])
     def compatibility(self, request, pk=None):
         artist = self.get_object()
         param = request.query_params.get("genres", "")

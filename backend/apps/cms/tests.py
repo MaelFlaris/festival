@@ -42,7 +42,8 @@ class CmsTests(TestCase):
         url = reverse("cms-public-pages-list")
         resp = self.client.get(url, {"edition": self.edition.id})
         self.assertEqual(resp.status_code, 200)
-        slugs = [p["slug"] for p in resp.data]
+        items = resp.data["results"] if isinstance(resp.data, dict) else resp.data
+        slugs = [p["slug"] for p in items]
         self.assertIn("b", slugs)
         self.assertNotIn("a", slugs)
 

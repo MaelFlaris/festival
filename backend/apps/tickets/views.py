@@ -42,7 +42,7 @@ class TicketTypeViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, v
         if cached is not None:
             return Response(cached)
 
-        qs = self.get_queryset()
+        qs = TicketType.objects.select_related("edition").all()
         if edition:
             qs = qs.filter(edition_id=edition)
         data = [TicketTypeSerializer(t).data for t in qs if t.is_on_sale()]
@@ -160,7 +160,7 @@ class TicketTypeViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, v
     # -------- Phase advance --------
     @action(methods=["POST"], detail=True, url_path="phase/advance")
     def phase_advance(self, request, pk=None):
-        tt = self.get_object()
+        tt = TicketType.objects.get(pk=pk)
         # Enforce manage_pricing only for authenticated users to preserve backward-compat
         if request.user and request.user.is_authenticated:
             if not request.user.has_perm("tickets.manage_pricing", tt):

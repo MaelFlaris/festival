@@ -107,7 +107,8 @@ class SponsorshipViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, 
         """
         Body: { "contract_url": "https://bucket.s3.region.amazonaws.com/contracts/..." }
         """
-        sponsorship = self.get_object()
+        from .models import Sponsorship
+        sponsorship = Sponsorship.objects.get(pk=pk)
         url = (request.data or {}).get("contract_url")
         if not url:
             return Response({"detail": "contract_url required"}, status=400)
