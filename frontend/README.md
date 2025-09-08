@@ -1,69 +1,41 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Ce dossier contient l'interface web du projet **Festival**. Elle est développée
+avec **React 19**, **TypeScript** et **Vite** pour offrir un environnement de
+développement rapide.
 
-Currently, two official plugins are available:
+## Configuration
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- `vite.config.ts` active le plugin React de Vite.
+- `tsconfig.json`, `tsconfig.app.json` et `tsconfig.node.json` définissent la
+  compilation TypeScript.
+- ESLint et TailwindCSS sont inclus pour garantir la qualité du code et le
+  style de l'interface.
 
-## Expanding the ESLint configuration
+## Consommer l'API backend
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Le backend expose ses routes sous le préfixe `/api`. Les appels HTTP peuvent
+donc être faits avec des URL relatives. Exemple avec Axios :
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```ts
+import axios from 'axios'
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+axios.get('/api/events').then(res => {
+  console.log(res.data)
+})
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+En développement comme en production, les requêtes vers `/api` sont envoyées
+au serveur backend.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts npm
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Les commandes suivantes sont disponibles dans ce dossier :
+
+- `npm run dev` – lance le serveur de développement Vite.
+- `npm run build` – génère la version de production dans `dist/`.
+- `npm run preview` – prévisualise localement le build de production.
+- `npm run lint` – exécute ESLint sur le code du projet.
+
+Installer les dépendances au préalable avec `npm install`.
+
