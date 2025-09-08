@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from django.conf import settings
+from django.db import models
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.feedgenerator import rfc2822_date
@@ -113,8 +114,13 @@ class PublicPageViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["slug"]
 
     def get_queryset(self):
-        qs = Page.objects.select_related("edition").all()
-        return [p for p in qs if is_within_publish_window(p.status, p.publish_at, p.unpublish_at)]
+        now = timezone.now()
+        return (
+            Page.objects.select_related("edition")
+            .filter(status="published")
+            .filter(models.Q(publish_at__lte=now) | models.Q(publish_at__isnull=True))
+            .filter(models.Q(unpublish_at__gt=now) | models.Q(unpublish_at__isnull=True))
+        )
 
 
 class PublicNewsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -127,13 +133,17 @@ class PublicNewsViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-publish_at", "-created_at"]
 
     def get_queryset(self):
-        qs = News.objects.select_related("edition").all()
+        now = timezone.now()
+        qs = (
+            News.objects.select_related("edition")
+            .filter(status="published")
+            .filter(models.Q(publish_at__lte=now) | models.Q(publish_at__isnull=True))
+            .filter(models.Q(unpublish_at__gt=now) | models.Q(unpublish_at__isnull=True))
+        )
         tag = self.request.query_params.get("tag")
-        items = [n for n in qs if is_within_publish_window(n.status, n.publish_at, n.unpublish_at)]
         if tag:
-            # filtre in-memory si DB ≠ Postgres; si Postgres, préférer tags__contains
-            items = [n for n in items if tag in (n.tags or [])]
-        return items
+            qs = qs.filter(tags__contains=[tag])
+        return qs
 
 
 # -------------------------

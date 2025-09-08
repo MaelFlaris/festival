@@ -18,8 +18,19 @@ class SluggedModel(models.Model):
     class Meta:
         abstract = True
     def save(self, *args, **kwargs):
+        # Assure que le champ name respecte sa longueur max pour éviter les erreurs DB
+        name_field = self._meta.get_field("name")
+        if self.name:
+            self.name = self.name[: name_field.max_length]
+
         if not self.slug:
-            self.slug = unique_slugify(self, self.name, slug_field_name="slug", max_length=220)
+            slug_field = self._meta.get_field("slug")
+            self.slug = unique_slugify(
+                self,
+                self.name,
+                slug_field_name="slug",
+                max_length=slug_field.max_length,
+            )
         super().save(*args, **kwargs)
 
 class PublishStatus(models.TextChoices):

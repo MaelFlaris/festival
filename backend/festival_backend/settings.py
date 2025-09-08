@@ -109,16 +109,27 @@ LOGOUT_REDIRECT_URL = "/api/v1/"
 # ---------------------------------------------------------------------
 # DB
 # ---------------------------------------------------------------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME":  os.getenv("POSTGRES_DB", "festival"),
-        "USER":  os.getenv("POSTGRES_USER", "festival"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "changeme"),
-        "HOST":  os.getenv("POSTGRES_HOST", "127.0.0.1"),
-        "PORT":  os.getenv("POSTGRES_PORT", "5432"),
+# Utilise PostgreSQL si les variables d'environnement nécessaires sont définies,
+# sinon bascule sur une base SQLite locale (pratique pour les tests).
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+if POSTGRES_HOST:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "festival"),
+            "USER": os.getenv("POSTGRES_USER", "festival"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "changeme"),
+            "HOST": POSTGRES_HOST,
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # ---------------------------------------------------------------------
 # Cache (Redis si REDIS_URL, sinon mémoire locale)

@@ -10,3 +10,5 @@ prometheus-client
 django-guardian
 markdown
 bleach
+requests
+pytest
