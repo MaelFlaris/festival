@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import SlotViewSet, ics_export
 
 router = DefaultRouter()
-router.register(r'slots', SlotViewSet)
+router.register(r'slots', SlotViewSet, basename="schedule-slots")
 
 urlpatterns = [
     path('', include(router.urls)),

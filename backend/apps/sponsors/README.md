@@ -3,34 +3,40 @@
 ## Rôle & Vision
 Gérer les **partenaires** par **tier** avec visibilité contrôlée, contrats et statistiques.
 
-**Objectifs (avec roadmap transverse V2+)**
-- **Contrats S3** : upload/stockage sécurisé + métadonnées.
-- **Statistiques** : montants par tier/édition, taux de visibilité.
-- **Webhooks** : sur création/modification de partenariat.
-
-## Modèles
-- `SponsorTier(name, slug, rank:int, display_name)` (ordering `rank`, 1 = plus haut).
-- `Sponsor(name, slug, website, logo, description)`.
-- `Sponsorship(edition, sponsor, tier, amount_eur, contract_url, visible, order)`
-  - Unicité `(edition, sponsor)` ; ordering `tier__rank, order, sponsor__name`.
+## Fonctionnalités
+- **Validations** strictes : `website`, `logo`, `contract_url` en **https**.
+- **Statistiques** (endpoint & métriques Prometheus) :
+  - Montants par **tier** et par **édition** ; total visible.
+  - Compteur/“gauge” de sponsors visibles par tier.
+- **Webhooks** sur création/maj : `sponsors.sponsorship.created|updated` (+ payload minimal).
+- **Contrats S3** (V2) :
+  - `POST /api/sponsors/sponsorships/contracts/presign` → URL présignée **PUT** (S3) si config dispo.
+  - `POST /api/sponsors/sponsorships/{id}/contracts/attach` → enregistre `contract_url` une fois l'upload réalisé.
+- **Public** (V2) : `GET /api/sponsors/sponsorships/public/by-edition?edition=ID`
+  - Regroupe par **tier** (ordre par `rank`), expose les sponsors visibles (nom, logo, site).
 
 ## API (DRF)
 - CRUD `/api/sponsors/tiers|sponsors|sponsorships/`
-  - Filtres `sponsorships` : `edition,tier,visible` ; recherche : `sponsor__name,tier__name` ; tri : `order,created_at` (def `edition,tier__rank,order,sponsor__name`).
+  - Filtres `sponsorships` : `edition,tier,visible` ; recherche : `sponsor__name,tier__name` ; tri : `order,created_at` (def `edition,tier__rank,order,sponsor__name`).
+- **Stats** : `GET /api/sponsors/sponsorships/stats/summary?edition=ID`
+- **Public groupé** : `GET /api/sponsors/sponsorships/public/by-edition?edition=ID`
+- **Contrats** : `POST /api/sponsors/sponsorships/contracts/presign` et `POST /api/sponsors/sponsorships/{id}/contracts/attach`
 
-## Règles & validations
-- `logo` et `website` : URLs `https` valides (V2+ : contrôle mimetype/logo à l’upload).
+## Paramètres
+```python
+SPONSORS_PUBLIC_CACHE_TTL = 300
 
-## Observabilité
-- Metrics : `sponsors_visible_total{tier}`, `sponsorship_amount_sum_eur{edition}`.
+# S3 (optionnel, pour presign PUT)
+SPONSORS_S3_BUCKET = "my-bucket"
+SPONSORS_S3_REGION = "eu-west-3"
+SPONSORS_S3_PREFIX = "contracts/"
+# via envs AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN
+Metrics
 
-## Tests
-- Unicité `(edition,sponsor)` ; tri multi‑clés ; validation d’URLs.
+sponsors_visible_total{tier_slug} (Gauge)
 
-## Exemples `curl`
-```bash
-curl -s '/api/sponsors/sponsorships/?edition=2025&visible=true&ordering=tier__rank,order'
-```
+sponsorship_amount_sum_eur{edition} (Gauge)
 
-## Roadmap dédiée
-- Contrats S3 ; analytics partenaires ; webhooks d’intégration (site vitrine, CRM).
+Tests
+
+Unicité (edition,sponsor) ; validations https ; regroupement public ; presign (skip si non configuré).

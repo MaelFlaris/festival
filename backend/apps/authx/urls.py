@@ -3,8 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import UserProfileViewSet
 
 router = DefaultRouter()
-router.register(r'profiles', UserProfileViewSet)
+router.register(r"profiles", UserProfileViewSet, basename="authx-profiles")
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

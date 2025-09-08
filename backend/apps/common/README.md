@@ -1,37 +1,38 @@
 # Festival — apps/common (README)
 
 ## Rôle & Vision
-Fournir des **fondations transverses** (mixins et conventions) pour homogénéiser toutes les apps : horodatage, slugs, publication, adresses.
-
-**Objectifs (avec roadmap transverse V2+)**
-- Abstractions solides et testées pour `TimeStampedModel`, `SluggedModel`, `PublishableModel`, `AddressMixin`.
-- Prévoir **SoftDelete** et **Versioning / Audit Trail** (Django‑Simple‑History) pour historiser et restaurer.
-- Exposer des **webhooks transverses** sur événements structurants (ex. suppression logique, changement de statut de publication).
-- **i18n** des adresses (normalisation, geohash) et validation stricte des pays ISO‑3166‑1 alpha‑2.
+Fournir des **fondations transverses** (mixins & conventions) pour homogénéiser toutes les apps : horodatage, slugs, publication, adresses, soft-delete, versioning et géolocalisation légère.
 
 ## Modèles fournis
-- `TimeStampedModel` : `created_at`, `updated_at` (indexés).
-- `SluggedModel` : `name`, `slug` unique (auto‑généré via `slugify`, troncature 220 car.) avec stratégie anti‑collision (suffixe court).
-- `PublishStatus` (`draft|review|published|archivé`), `PublishableModel` : `status`, `publish_at`, `unpublish_at`.
-- `AddressMixin` : `address`, `city`, `postal_code`, `country`, `latitude`, `longitude`.
+- **TimeStampedModel** : `created_at`, `updated_at` (indexés).
+- **SluggedModel** : `name`, `slug` unique (auto-généré via `unique_slugify`, anti-collision).
+- **PublishStatus** (`draft|review|published|archivé`) et **PublishableModel** : `status`, `publish_at`, `unpublish_at` + validation de fenêtre + **signal `publish_status_changed`**.
+- **SoftDeleteModel** : `deleted_at` (+ managers/scopes `.objects`=vivants, `.all_objects`=tous, `.alive()/.dead()`), méthodes `delete()` (soft), `hard_delete()`, `undelete()`, **signal `soft_deleted`**.
+- **AddressMixin** : `address`, `city`, `postal_code`, `country` (validator ISO-3166-1 alpha-2), `latitude`, `longitude` (décimaux).
+- **GeoMixin** : `geohash`, `srid=4326` + calcul automatique du geohash à l’enregistrement, helper `distance_km_to()` (haversine).
 
-## Exigences & règles
-- `SluggedModel.save()` renseigne le slug si absent ; garantit l’unicité (DB) et la stabilité.
-- `PublishableModel` : validation (V2+) → si `publish_at` et `unpublish_at` présents : `publish_at < unpublish_at`.
+## Webhooks & Observabilité
+- **Signals** : `publish_status_changed`, `soft_deleted`.
+- **Webhooks** (optionnels) via `dispatch_webhook(event, payload)` :
+  - Configure **`settings.COMMON_WEBHOOK_URLS = ["https://..."]`**.
+  - Optionnel : **`settings.COMMON_WEBHOOK_SECRET = "…"``** → signature HMAC SHA-256 en header `X-Common-Signature`.
+- Les receivers sont branchés dans `CommonConfig.ready()`.
 
-## Sécurité & Permissions
-- Pas d’API directe exposée ; utilisé par composition dans les autres apps.
-- (V2+) Décorateurs utilitaires DRF pour imposer `IsAuthenticatedOrReadOnly` sur les modèles publiables.
+## Versioning (facultatif)
+- **VersionedModel** : intègre `simple_history` si installé (fallback no-op sinon).
+- Utilisation : hériter de `VersionedModel` dans les modèles concrets.
 
-## Observabilité
-- (V2+) Signaux `post_save` sur modèles publiables → **invalidation cache** + **webhooks**.
+## Sécurité & DRF
+- `ReadonlyForAnonymousViewSet` et décorateur `enforce_readonly_for_anonymous`.
+- Pas d’API exposée par common (seulement des mixins, serializers utilitaires).
 
 ## Tests attendus
-- Génération de slug multi‑langue (y compris accents) ; max 220 caractères ; anti‑collision.
-- Sérialisation d’adresses avec caractères non‑ASCII ; validation `country` ISO2.
+- Slug anti-collision et troncature.
+- Validation ISO2 (serializer + validator modèle).
+- Haversine & geohash cohérents.
+- Soft-delete scopes : `.objects` vs `.all_objects`, `undelete()`.
 
-## Roadmap dédiée
-- `GeoMixin` (geohash, SRID, distance).
-- `SoftDeleteModel` (champ `deleted_at`, scopes actifs/supprimés).
-- `VersionedModel` (audit minimal) et intégration Django‑Simple‑History.
-- Webhooks transverses (suppression logique, publication).
+## Intégration rapide (exemple)
+Dans un modèle concret :
+- Hérite de `TimeStampedModel`, `SluggedModel`, `PublishableModel`, `SoftDeleteModel`, `AddressMixin`, `GeoMixin` selon besoin.
+- Pour l’historique : ajouter `VersionedModel` si `simple_history` disponible.

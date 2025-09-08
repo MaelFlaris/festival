@@ -1,40 +1,46 @@
-  # Festival — apps/authx (README)
+# Festival — apps/authx (README)
 
-  ## Rôle & Vision
-  Étendre l’authentification Django par un **profil utilisateur** riche et exploitable pour la personnalisation.
+## Rôle & Vision
+Profil utilisateur enrichi pour personnalisation, consents RGPD et intégration SSO/OIDC.
 
-  **Objectifs (avec roadmap transverse V2+)**
-  - **Self‑service** : chaque utilisateur modifie uniquement **son** profil.
-  - **Consentements RGPD** (V2+) : `consents` horodatés.
-  - **SSO/OIDC** (V2+) : hydratation automatique (`email`, `name`, `picture`, `locale`). 
-  - **Webhooks** : `authx.profile.updated` pour CRM/marketing.
+## Modèle
+- `UserProfile(user:OneToOne, display_name, avatar, preferences:JSON, consents:JSON)`
+  - `preferences` max ~32 KiB (configurable via `AUTHX_PREFERENCES_MAX_BYTES`)
+  - `consents`: par clé, historique d’événements `{"granted":bool,"at":iso8601,"source":str}`
+- Historisation si `django-simple-history` est installé (via `VersionedModel`).
 
-  ## Modèle
-  - `UserProfile(user:OneToOne, display_name, avatar, preferences:JSON)`
-    - `preferences` (schéma recommandé) : 
-      - `default_filters`: `{edition, stages:[], genres:[], only_published:true}`
-      - `ui`: `{theme:"dark"|"light"}`
+## API (DRF)
+- `GET/POST /api/authx/profiles/` — liste
+- `GET/PUT/PATCH/DELETE /api/authx/profiles/{id}/`
+- `GET/PATCH/PUT /api/authx/profiles/me` — self-service
+- Recherche: `user__username,user__email,display_name`
+- Tri: `user__username,created_at,updated_at`
 
-  ## API (DRF)
-  - `GET/POST /api/authx/profiles/` ; `GET/PUT/PATCH/DELETE /api/authx/profiles/{id}/`
-    - Recherche : `user__username,user__email,display_name`; tri : `user__username,created_at`.
+### Écriture de consents
+Envoyer dans la payload `consent_updates`:
+```json
+{"consent_updates":[{"key":"newsletter","granted":true,"source":"ui"}]}
 
-  ## Sécurité & Permissions
-  - **Object‑level** : propriétaire requis pour modifier ; admins peuvent tout lister/éditer.
-  - Limite taille `preferences` ≤ 32 Ko.
+Sécurité & Permissions
 
-  ## Observabilité
-  - Metric : `authx_profile_updates_total` ; logs diff clés modifiées (sans données sensibles).
+Self-service via IsOwnerOrAdmin: un utilisateur modifie uniquement son profil.
 
-  ## Tests
-  - Accès propriétaire (`200`) vs autre utilisateur (`403`). Sérialisation RO de `username`/`email`.
+Admin/Staff: visibilité et édition globales.
 
-  ## Exemples `curl`
-  ```bash
-  curl -X PATCH -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \
--d '{"display_name":"Maël","preferences":{"ui":{"theme":"dark"}}}' \
-/api/authx/profiles/123/
-  ```
+Liste filtrée par défaut à l’utilisateur courant.
 
-  ## Roadmap dédiée
-  - OIDC/SSO ; avatars upload (S3) ; Audit Trail des préférences ; webhooks de synchro.
+Observabilité & Webhooks
+
+Compteur Prometheus (si dispo): authx_profile_updates_total{field=...}
+
+Webhook authx.profile.updated (via COMMON_WEBHOOK_URLS / COMMON_WEBHOOK_SECRET)
+
+payload: {"event":"authx.profile.updated","user_id":...,"profile_id":...,"changed_fields":[...]}
+
+SSO / OIDC (V2)
+
+Hydratation opportuniste à la connexion (signal user_logged_in):
+
+En-têtes proxy: X-Authx-Name, X-Authx-Picture, X-Authx-Locale
+
+Session OIDC si disponible (oidc_id_token, oidc_userinfo, …)
