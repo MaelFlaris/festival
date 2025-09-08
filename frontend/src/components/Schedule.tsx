@@ -1,44 +1,22 @@
-import { useEffect, useState } from 'react'
-
-interface EventItem {
-  id: number
-  title: string
-  start: string
-  end: string
-  stage?: string
-}
+import { useSlots } from '../api/schedule'
 
 export default function Schedule() {
-  const [events, setEvents] = useState<EventItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: slots,
+    isLoading,
+    error,
+  } = useSlots()
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    fetch('/api/schedule', {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      credentials: 'include',
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Network response was not ok')
-        return res.json()
-      })
-      .then((data) => setEvents(data))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (loading) return <p>Loading schedule...</p>
-  if (error) return <p>Error: {error}</p>
+  if (isLoading) return <p>Loading schedule...</p>
+  if (error) return <p>Error loading schedule</p>
 
   return (
     <div>
       <h2>Schedule</h2>
       <ul>
-        {events.map((event) => (
-          <li key={event.id}>
-            {event.title} - {event.start} to {event.end}
-            {event.stage ? ` @ ${event.stage}` : ''}
+        {slots?.map((slot) => (
+          <li key={slot.id}>
+            {slot.day} {slot.start_time} - {slot.end_time}
           </li>
         ))}
       </ul>
