@@ -33,6 +33,9 @@ class Slot(TimeStampedModel):
     class Meta:
         ordering = ["day", "stage__name", "start_time"]
         indexes = [models.Index(fields=["edition", "day", "stage", "start_time"])]
+        permissions = [
+            ("manage_slot", "Peut gérer le slot (annuler/confirmer)"),
+        ]
 
     def __str__(self):
         return f"{self.artist.name} @ {self.stage.name} {self.day} {self.start_time}-{self.end_time}"

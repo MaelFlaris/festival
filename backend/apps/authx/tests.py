@@ -1,8 +1,4 @@
-
----
-
-### Contenu de `D:\DEV\festival\backend\apps\authx\tests.py`
-```python
+"""Authx tests (self-service profile)."""
 from __future__ import annotations
 
 import json

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "django_filters",
+    "guardian",
 
     # apps projet
     "apps.common",
@@ -220,5 +221,14 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
 }
+
+# ---------------------------------------------------------------------
+# Guardian RBAC (object-level permissions)
+# ---------------------------------------------------------------------
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "guardian.backends.ObjectPermissionBackend",
+]
+GUARDIAN_ANONYMOUS_USER_NAME = None
 LOGIN_REDIRECT_URL = "/api/v1/"   
 LOGOUT_REDIRECT_URL = "/api/v1/" 

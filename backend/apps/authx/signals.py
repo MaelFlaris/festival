@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Dict, List
 
 from django.db.models.signals import pre_save, post_save
+from django.contrib.auth import get_user_model
 from django.dispatch import receiver
 
 from .metrics import PROFILE_UPDATES_TOTAL
@@ -52,4 +53,16 @@ def _profile_post_save(sender, instance: UserProfile, created: bool, **kwargs):
         emit_profile_updated_webhook(instance, changed_fields=changed)
     except Exception:
         # jamais bloquant
+        pass
+
+
+# Auto-create a UserProfile when a User is created
+@receiver(post_save, sender=get_user_model())
+def _user_created_profile(sender, instance, created: bool, **kwargs):
+    if not created:
+        return
+    try:
+        UserProfile.objects.get_or_create(user=instance)
+    except Exception:
+        # Best-effort; never break user creation
         pass

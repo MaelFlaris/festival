@@ -32,13 +32,16 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         u = self.request.user
         if u.is_staff or u.is_superuser:
             return qs
-        return qs.filter(user=u)
+        # For list views, restrict to own profile; for detail, rely on object perms (403)
+        if getattr(self, "action", None) == "list":
+            return qs.filter(user=u)
+        return qs
 
     def perform_create(self, serializer: UserProfileSerializer):
         # Forcer l'association au user courant
-        serializer.instance = UserProfile.objects.create(user=self.request.user, **serializer.validated_data)
+        serializer.save(user=self.request.user)
 
-    @action(methods=["GET", "PATCH", "PUT"], detail=False, url_path="me")
+    @action(methods=["GET", "PATCH", "PUT"], detail=False, url_path="me", permission_classes=[IsAuthenticated])
     def me(self, request, *args, **kwargs):
         """
         GET: retourne ou crée le profil du user courant

@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
+from rest_framework.permissions import IsAuthenticated, DjangoObjectPermissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -14,9 +15,11 @@ from .services import presign_contract_put, public_grouped_by_edition, stats_sum
 import csv
 import io
 from django.http import HttpResponse
+from apps.common.rbac import ObjectPermissionsMixin, AssignCreatorObjectPermsMixin
 
 
-class SponsorTierViewSet(viewsets.ModelViewSet):
+class SponsorTierViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, IsSponsorManagerOrReadOnly, DjangoObjectPermissions]
     queryset = SponsorTier.objects.all()
     serializer_class = SponsorTierSerializer
     permission_classes = [IsSponsorManagerOrReadOnly]
@@ -26,7 +29,8 @@ class SponsorTierViewSet(viewsets.ModelViewSet):
     ordering = ["rank", "name"]
 
 
-class SponsorViewSet(viewsets.ModelViewSet):
+class SponsorViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, IsSponsorManagerOrReadOnly, DjangoObjectPermissions]
     queryset = Sponsor.objects.all()
     serializer_class = SponsorSerializer
     permission_classes = [IsSponsorManagerOrReadOnly]
@@ -36,7 +40,8 @@ class SponsorViewSet(viewsets.ModelViewSet):
     ordering = ["name"]
 
 
-class SponsorshipViewSet(viewsets.ModelViewSet):
+class SponsorshipViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, IsSponsorManagerOrReadOnly, DjangoObjectPermissions]
     queryset = Sponsorship.objects.select_related("edition", "tier", "sponsor").all()
     serializer_class = SponsorshipSerializer
     permission_classes = [IsSponsorManagerOrReadOnly]
@@ -97,7 +102,7 @@ class SponsorshipViewSet(viewsets.ModelViewSet):
         return Response(res, status=status_code)
 
     # ------- Contracts: attach uploaded URL -------
-    @action(methods=["POST"], detail=True, url_path="contracts/attach")
+    @action(methods=["POST"], detail=True, url_path="contracts/attach", permission_classes=[])
     def contracts_attach(self, request, pk=None):
         """
         Body: { "contract_url": "https://bucket.s3.region.amazonaws.com/contracts/..." }

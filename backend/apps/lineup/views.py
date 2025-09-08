@@ -17,6 +17,7 @@ from .models import Artist, ArtistAvailability, Genre
 from .permissions import IsBookerOrReadOnly
 from .serializers import ArtistAvailabilitySerializer, ArtistSerializer, GenreSerializer
 from .services import compute_compatibility, enrich_from_musicbrainz, enrich_from_spotify
+from apps.common.rbac import ObjectPermissionsMixin, AssignCreatorObjectPermsMixin
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +86,7 @@ class ArtistViewSet(viewsets.ModelViewSet):
         score = compute_compatibility(artist, genre_ids)
         return Response({"artist": artist.id, "score": score})
 
-    @action(methods=["POST"], detail=True, url_path="enrich")
+    @action(methods=["POST"], detail=True, url_path="enrich", permission_classes=[])
     def enrich(self, request, pk=None):
         """
         Payload:
@@ -158,3 +159,36 @@ class ArtistAvailabilityViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
         return qs
+
+
+# ----------------------------
+# Admin RBAC viewsets (guardian)
+# ----------------------------
+
+class GenreAdminViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
+    queryset = Genre.objects.all()
+    serializer_class = GenreSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name"]
+    ordering_fields = ["name", "created_at"]
+    ordering = ["name"]
+
+
+class ArtistAdminViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
+    queryset = Artist.objects.all()
+    serializer_class = ArtistSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["country", "genres", "popularity"]
+    search_fields = ["name", "short_bio"]
+    ordering_fields = ["name", "popularity", "created_at"]
+    ordering = ["-popularity", "name"]
+
+
+class ArtistAvailabilityAdminViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
+    queryset = ArtistAvailability.objects.select_related("artist").all()
+    serializer_class = ArtistAvailabilitySerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["artist", "available", "date"]
+    search_fields = ["artist__name", "notes"]
+    ordering_fields = ["date", "created_at"]
+    ordering = ["date", "artist__name"]

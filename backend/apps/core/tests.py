@@ -83,8 +83,7 @@ def test_activate_view_action():
     assert e2.is_active is True
     assert e1.is_active is False
     
-    
-    @pytest.mark.django_db
+@pytest.mark.django_db
 def test_summary_action_minimal():
     e = FestivalEdition.objects.create(name="Edition 2026", year=2026, start_date=date(2026, 7, 1), end_date=date(2026, 7, 2))
     factory = APIRequestFactory()
@@ -117,4 +116,3 @@ def test_i18n_localized_fallbacks():
     resp_fr = view(req_fr, pk=str(e.id))
     assert resp_fr.data["name_localized"] == "Nom FR par défaut"
     assert resp_fr.data["tagline_localized"] == "Accroche FR"
-

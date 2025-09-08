@@ -17,6 +17,9 @@ class Page(VersionedModel, TimeStampedModel, PublishableModel):
     class Meta:
         unique_together = [("edition", "slug")]
         ordering = ["slug"]
+        permissions = [
+            ("publish_page", "Peut publier la page"),
+        ]
 
     def __str__(self):
         return f"{self.edition.year} / {self.slug}"
@@ -45,6 +48,9 @@ class News(VersionedModel, TimeStampedModel, PublishableModel):
 
     class Meta:
         ordering = ["-publish_at", "-created_at"]
+        permissions = [
+            ("publish_news", "Peut publier l'actualité"),
+        ]
 
     def __str__(self):
         return f"{self.edition.year} / {self.title[:40]}"

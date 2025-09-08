@@ -10,6 +10,7 @@ from django.utils.dateparse import parse_date, parse_time
 from django.utils.timezone import now
 from icalendar import Calendar, Event
 from rest_framework import filters, status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -18,6 +19,7 @@ from .metrics import CONFLICTS_TOTAL
 from .models import Slot, SlotStatus
 from .serializers import SlotSerializer
 from .services import copy_template, find_conflicts
+from apps.common.rbac import ObjectPermissionsMixin, AssignCreatorObjectPermsMixin
 from collections import defaultdict
 
 
@@ -25,7 +27,7 @@ from collections import defaultdict
 # ViewSet CRUD + 409 conflits
 # ---------------------------------------------------------------------------
 
-class SlotViewSet(viewsets.ModelViewSet):
+class SlotViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
     queryset = Slot.objects.select_related("edition", "stage", "artist").all()
     serializer_class = SlotSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -47,6 +49,15 @@ class SlotViewSet(viewsets.ModelViewSet):
             cache.set(key, resp.data, ttl)
             return resp
         return super().list(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        new_status = serializer.validated_data.get("status")
+        if new_status and new_status != instance.status:
+            # Require manage_slot to change status
+            if not self.request.user.has_perm("schedule.manage_slot", instance):
+                raise PermissionDenied("Missing manage_slot permission")
+        return super().perform_update(serializer)
 
     def _check_and_block_conflicts(self, data, exclude_id=None):
         conflicts = find_conflicts(

@@ -17,7 +17,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.CharField(source="user.email", read_only=True)
 
-    # Écriture de consents via un champ spécifique (liste d’updates)
+    # Écriture de consents via un champ spécifique (liste d'updates)
     consent_updates = ConsentUpdateSerializer(many=True, write_only=True, required=False)
 
     # Expose un snapshot compact des consents
@@ -25,9 +25,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        # ⚠️ On ne permet pas d’écrire 'user' depuis l’API
+        # On n'autorise pas l'écriture de 'user' depuis l'API
         fields = (
             "id",
+            "user",
             "username",
             "email",
             "display_name",
@@ -39,7 +40,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "created_at", "updated_at", "consents")
+        read_only_fields = ("id", "user", "created_at", "updated_at", "consents")
 
     def get_consents_snapshot(self, obj: UserProfile) -> Dict[str, Any]:
         return obj.last_consents_snapshot()
@@ -73,3 +74,4 @@ class UserProfileSerializer(serializers.ModelSerializer):
         instance.full_clean()
         instance.save()
         return instance
+

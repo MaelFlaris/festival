@@ -14,13 +14,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 
 from .models import TicketType, PricePhase, PHASE_ORDER
 from .serializers import TicketTypeSerializer
 from .services import current_cache_version
+from apps.common.rbac import ObjectPermissionsMixin, AssignCreatorObjectPermsMixin
 
 
-class TicketTypeViewSet(viewsets.ModelViewSet):
+class TicketTypeViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
     queryset = TicketType.objects.select_related("edition").all()
     serializer_class = TicketTypeSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -30,7 +32,7 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
     ordering = ["edition", "code"]
 
     # -------- On sale listing (cached) --------
-    @action(methods=["GET"], detail=False, url_path="on-sale")
+    @action(methods=["GET"], detail=False, url_path="on-sale", permission_classes=[])
     def on_sale(self, request):
         edition = request.query_params.get("edition")
         ttl = int(getattr(settings, "TICKETS_ON_SALE_CACHE_TTL", 120))
@@ -96,7 +98,7 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
         return resp
 
     # -------- Reserve (anti-fraud: rate limit) --------
-    @action(methods=["POST"], detail=True, url_path="reserve")
+    @action(methods=["POST"], detail=True, url_path="reserve", permission_classes=[])
     def reserve(self, request, pk=None):
         """
         Body:
@@ -159,6 +161,10 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
     @action(methods=["POST"], detail=True, url_path="phase/advance")
     def phase_advance(self, request, pk=None):
         tt = self.get_object()
+        # Enforce manage_pricing only for authenticated users to preserve backward-compat
+        if request.user and request.user.is_authenticated:
+            if not request.user.has_perm("tickets.manage_pricing", tt):
+                return Response({"detail": "Forbidden"}, status=403)
         nxt = tt.next_phase()
         if not nxt:
             return Response({"detail": "No next phase"}, status=400)
@@ -167,7 +173,7 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
         return Response({"ok": True, "id": tt.id, "phase": tt.phase})
 
     # -------- Stats summary --------
-    @action(methods=["GET"], detail=False, url_path="stats/summary")
+    @action(methods=["GET"], detail=False, url_path="stats/summary", permission_classes=[])
     def stats_summary(self, request):
         edition = request.query_params.get("edition")
         qs = self.get_queryset()
@@ -196,3 +202,13 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
             total_rev += (t.price * Decimal(max(0, int(t.quota_total) - int(t.quota_reserved))))
         res["total_revenue_potential_ttc"] = f"{total_rev:.2f}"
         return Response(res)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        sensitive = {"price", "vat_rate", "phase"}
+        if any(k in serializer.validated_data for k in sensitive):
+            user = getattr(self.request, "user", None)
+            if user and user.is_authenticated and not user.has_perm("tickets.manage_pricing", instance):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Missing manage_pricing permission")
+        return super().perform_update(serializer)

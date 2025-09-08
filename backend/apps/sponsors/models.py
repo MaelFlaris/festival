@@ -58,6 +58,9 @@ class Sponsorship(TimeStampedModel):
         indexes = [
             models.Index(fields=["edition", "visible", "tier", "order"]),
         ]
+        permissions = [
+            ("view_financials", "Peut voir les montants confidentiels"),
+        ]
 
     def clean(self):
         _require_https(self.contract_url, "contract_url")

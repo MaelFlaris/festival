@@ -12,7 +12,7 @@ class IsOwnerOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         # GET list: autorisé, mais queryset sera filtré dans la view
-        return True
+        return bool(getattr(request, "user", None) and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
         if request.user and (request.user.is_staff or request.user.is_superuser):

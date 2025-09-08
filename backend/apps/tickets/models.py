@@ -58,6 +58,9 @@ class TicketType(TimeStampedModel):
             models.Index(fields=["edition", "phase", "is_active"]),
             models.Index(fields=["edition", "day", "is_active"]),
         ]
+        permissions = [
+            ("manage_pricing", "Peut gérer phases/prix"),
+        ]
 
     # ---- Validations -------------------------------------------------------
 

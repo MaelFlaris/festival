@@ -7,3 +7,6 @@ django-filter
 psycopg[binary]==3.2.*
 icalendar
 prometheus-client
+django-guardian
+markdown
+bleach

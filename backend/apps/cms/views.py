@@ -28,21 +28,37 @@ from .services import (
 # ViewSets “éditoriaux” (admin/editeurs)
 # -------------------------
 
-class PageViewSet(viewsets.ModelViewSet):
+from apps.common.rbac import ObjectPermissionsMixin, AssignCreatorObjectPermsMixin
+
+
+class PageViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
     queryset = Page.objects.select_related("edition").all()
     serializer_class = PageSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # ObjectPermissionsMixin enforces IsAuthenticated + object perms
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["edition", "status"]
     search_fields = ["slug", "title", "body_md"]
     ordering_fields = ["slug", "publish_at", "created_at"]
     ordering = ["edition", "slug"]
 
+    @action(methods=["POST"], detail=True, url_path="publish")
+    def publish(self, request, pk=None):
+        obj = self.get_object()
+        if not request.user.has_perm("cms.publish_page", obj):
+            return Response({"detail": "Forbidden"}, status=403)
+        try:
+            from apps.common.models import PublishStatus
+            obj.status = PublishStatus.PUBLISHED
+            obj.save(update_fields=["status", "updated_at"])
+        except Exception:
+            return Response({"detail": "Unable to publish"}, status=400)
+        return Response(PageSerializer(obj, context=self.get_serializer_context()).data)
 
-class FAQItemViewSet(viewsets.ModelViewSet):
+
+class FAQItemViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
     queryset = FAQItem.objects.select_related("edition").all()
     serializer_class = FAQItemSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # ObjectPermissionsMixin enforces IsAuthenticated + object perms
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["edition"]
     search_fields = ["question", "answer_md"]
@@ -50,10 +66,10 @@ class FAQItemViewSet(viewsets.ModelViewSet):
     ordering = ["edition", "order", "id"]
 
 
-class NewsViewSet(viewsets.ModelViewSet):
+class NewsViewSet(AssignCreatorObjectPermsMixin, ObjectPermissionsMixin, viewsets.ModelViewSet):
     queryset = News.objects.select_related("edition").all()
     serializer_class = NewsSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # ObjectPermissionsMixin enforces IsAuthenticated + object perms
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     # Note: django-filter doesn't auto-handle JSONField; keep custom ?tag= filter below
     filterset_fields = ["edition", "status"]
@@ -69,6 +85,20 @@ class NewsViewSet(viewsets.ModelViewSet):
             qs = qs.filter(tags__contains=[tag])
         return qs
 
+    @action(methods=["POST"], detail=True, url_path="publish")
+    def publish(self, request, pk=None):
+        obj = self.get_object()
+        if not request.user.has_perm("cms.publish_news", obj):
+            return Response({"detail": "Forbidden"}, status=403)
+        # Minimal publish: set status to published
+        try:
+            from apps.common.models import PublishStatus
+            obj.status = PublishStatus.PUBLISHED
+            obj.save(update_fields=["status", "updated_at"])
+        except Exception:
+            return Response({"detail": "Unable to publish"}, status=400)
+        return Response(NewsSerializer(obj, context=self.get_serializer_context()).data)
+
 
 # -------------------------
 # Endpoints publics (lecture-only, contenus publiés)
@@ -76,8 +106,8 @@ class NewsViewSet(viewsets.ModelViewSet):
 
 class PublicPageViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PageSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["edition", "slug"]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = []
     search_fields = ["slug", "title", "body_md"]
     ordering_fields = ["slug", "publish_at", "created_at"]
     ordering = ["slug"]
@@ -89,9 +119,9 @@ class PublicPageViewSet(viewsets.ReadOnlyModelViewSet):
 
 class PublicNewsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NewsSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     # Avoid auto-filter on JSONField; use ?tag= convenience param in get_queryset
-    filterset_fields = ["edition"]
+    filterset_fields = []
     search_fields = ["title", "summary", "body_md"]
     ordering_fields = ["publish_at", "created_at"]
     ordering = ["-publish_at", "-created_at"]

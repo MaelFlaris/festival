@@ -29,3 +29,12 @@ class SponsorshipSerializer(serializers.ModelSerializer):
             "tier", "tier_name", "tier_rank", "amount_eur", "contract_url",
             "visible", "order", "created_at", "updated_at"
         )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        user = getattr(request, "user", None)
+        if not (user and user.is_authenticated and (user.is_staff or user.is_superuser or user.has_perm("sponsors.view_financials", instance))):
+            # Hide sensitive amount if no permission
+            data["amount_eur"] = None
+        return data
