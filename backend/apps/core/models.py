@@ -7,6 +7,9 @@ class FestivalEdition(TimeStampedModel, SluggedModel):
     start_date = models.DateField()
     end_date = models.DateField()
     tagline = models.CharField(max_length=200, blank=True)
+    # Champs i18n (JSON mapping {"fr": "Nom", "en": "Name"})
+    name_i18n = models.JSONField(default=dict, blank=True, help_text="Traductions du nom")
+    tagline_i18n = models.JSONField(default=dict, blank=True, help_text="Traductions de l'accroche")
     hero_image = models.URLField(blank=True)
     is_active = models.BooleanField(default=False, db_index=True)
 

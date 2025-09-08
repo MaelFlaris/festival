@@ -9,8 +9,8 @@ from django.utils import timezone
 from django.utils.feedgenerator import rfc2822_date
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action, api_view
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from django.core.cache import cache
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .metrics import PREVIEW_REQUESTS_TOTAL
@@ -19,6 +19,7 @@ from .serializers import PageSerializer, FAQItemSerializer, NewsSerializer
 from .services import (
     build_preview_url,
     create_preview_token,
+    current_public_cache_version,
     is_within_publish_window,
     markdown_to_html_safe,
     verify_preview_token,
@@ -122,6 +123,18 @@ class PublicPageViewSet(viewsets.ReadOnlyModelViewSet):
             .filter(models.Q(unpublish_at__gt=now) | models.Q(unpublish_at__isnull=True))
         )
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        ttl = int(getattr(settings, "CMS_PUBLIC_CACHE_TTL", 300))
+        v = current_public_cache_version()
+        key = f"cms:pages:v{v}:{hash(frozenset(request.query_params.items()))}"
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        serializer = self.get_serializer(queryset, many=True)
+        cache.set(key, serializer.data, ttl)
+        return Response(serializer.data)
+
 
 class PublicNewsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NewsSerializer
@@ -144,6 +157,18 @@ class PublicNewsViewSet(viewsets.ReadOnlyModelViewSet):
         if tag:
             qs = qs.filter(tags__contains=[tag])
         return qs
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        ttl = int(getattr(settings, "CMS_PUBLIC_CACHE_TTL", 300))
+        v = current_public_cache_version()
+        key = f"cms:news:v{v}:{hash(frozenset(request.query_params.items()))}"
+        cached = cache.get(key)
+        if cached is not None:
+            return Response(cached)
+        serializer = self.get_serializer(queryset, many=True)
+        cache.set(key, serializer.data, ttl)
+        return Response(serializer.data)
 
 
 # -------------------------
