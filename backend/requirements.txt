@@ -12,3 +12,5 @@ markdown
 bleach
 requests
 pytest
+redis
+pytest-django

@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 
 from apps.common.services import dispatch_webhook
@@ -80,6 +81,26 @@ def dispatch_publish_webhook(instance, old_status: Optional[str], new_status: Op
         "timestamp": timezone.now().isoformat(),
     }
     dispatch_webhook(evt, payload)
+
+
+# ---------------------------------------------------------------------------
+# Cache versioning pour endpoints publics
+# ---------------------------------------------------------------------------
+
+PUBLIC_CACHE_VERSION_KEY = "cms:public:version"
+
+def bump_public_cache_version() -> None:
+    try:
+        v = cache.get(PUBLIC_CACHE_VERSION_KEY, 0)
+        cache.set(PUBLIC_CACHE_VERSION_KEY, int(v) + 1, None)
+    except Exception:
+        pass
+
+def current_public_cache_version() -> int:
+    try:
+        return int(cache.get(PUBLIC_CACHE_VERSION_KEY, 0))
+    except Exception:
+        return 0
 
 # ---------------------------------------------------------------------------
 # Preview tokens (HMAC)
