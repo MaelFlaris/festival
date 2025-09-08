@@ -1,4 +1,4 @@
-﻿services:
+services:
   db:
     image: postgres:16
     container_name: festival_db
@@ -11,5 +11,39 @@
     volumes:
       - db_data:/var/lib/postgresql/data
     restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: festival_backend
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      DB_NAME: festival
+      DB_USER: festival
+      DB_PASS: festival
+      DB_HOST: db
+      DB_PORT: 5432
+      DJANGO_SECRET_KEY: change-me
+      DJANGO_DEBUG: "1"
+      ALLOWED_HOSTS: "*"
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: festival_frontend
+    command: npm run dev -- --host
+    volumes:
+      - ./frontend:/app
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
 volumes:
   db_data:

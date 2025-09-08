@@ -20,31 +20,17 @@ Plateforme de gestion d'un festival combinant une API Django et une interface Re
    pip install -r backend/requirements.txt
    npm install --prefix frontend
    ```
-3. Démarrer l'infrastructure :
+3. Démarrer le projet :
    ```bash
-   docker compose up -d
+   docker compose up --build
    ```
 
 ## Lancement
 
-### Backend
+Une fois lancés, les services sont disponibles sur :
 
-```bash
-cd backend
-python manage.py migrate
-python manage.py runserver
-```
-
-L'API est exposée sur `http://localhost:8000/`.
-
-### Frontend
-
-```bash
-cd frontend
-npm run dev
-```
-
-L'application est disponible sur `http://localhost:5173/`.
+- API : `http://localhost:8000/`
+- Application : `http://localhost:5173/`
 
 ## Architecture
 
