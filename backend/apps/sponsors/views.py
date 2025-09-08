@@ -11,6 +11,9 @@ from .models import SponsorTier, Sponsor, Sponsorship
 from .permissions import IsSponsorManagerOrReadOnly
 from .serializers import SponsorTierSerializer, SponsorSerializer, SponsorshipSerializer
 from .services import presign_contract_put, public_grouped_by_edition, stats_summary
+import csv
+import io
+from django.http import HttpResponse
 
 
 class SponsorTierViewSet(viewsets.ModelViewSet):
@@ -107,3 +110,39 @@ class SponsorshipViewSet(viewsets.ModelViewSet):
         sponsorship.full_clean()
         sponsorship.save(update_fields=["contract_url"])
         return Response({"ok": True, "id": sponsorship.id, "contract_url": sponsorship.contract_url})
+
+    # ------- Export CSV -------
+    @action(methods=["GET"], detail=False, url_path=r"export\.csv")
+    def export_csv(self, request):
+        qs = self.get_queryset()
+        edition = request.query_params.get("edition")
+        if edition:
+            qs = qs.filter(edition_id=edition)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "edition_id", "edition_year", "tier_rank", "tier_name",
+            "sponsor_id", "sponsor_name", "amount_eur", "visible", "order",
+            "logo_url", "contract_url", "created_at"
+        ])
+        for s in qs.iterator():
+            writer.writerow([
+                s.edition_id,
+                s.edition.year,
+                s.tier.rank,
+                s.tier.display_name,
+                s.sponsor_id,
+                s.sponsor.name,
+                float(s.amount_eur or 0.0),
+                1 if s.visible else 0,
+                s.order,
+                s.sponsor.logo,
+                s.contract_url,
+                s.created_at.isoformat(),
+            ])
+        data = output.getvalue()
+        filename = f"sponsorships_{edition or 'all'}.csv"
+        resp = HttpResponse(data, content_type="text/csv; charset=utf-8")
+        resp["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+        return resp

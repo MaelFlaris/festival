@@ -18,6 +18,7 @@ from .metrics import CONFLICTS_TOTAL
 from .models import Slot, SlotStatus
 from .serializers import SlotSerializer
 from .services import copy_template, find_conflicts
+from collections import defaultdict
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +108,40 @@ class SlotViewSet(viewsets.ModelViewSet):
         if conflicts:
             CONFLICTS_TOTAL.inc()
         return Response({"conflicts": [c.to_dict() for c in conflicts]})
+
+    @action(methods=["GET"], detail=False, url_path="validate")
+    def validate(self, request):
+        try:
+            edition = int(request.query_params.get("edition"))
+        except Exception:
+            return Response({"detail": "edition is required"}, status=400)
+        qs = Slot.objects.select_related("stage").filter(edition_id=edition).order_by("day", "stage_id", "start_time")
+        groups = defaultdict(list)
+        for s in qs:
+            groups[(s.stage_id, s.day)].append(s)
+
+        results = []
+        for (stage_id, day), slots in groups.items():
+            # sorted by start_time already
+            n = len(slots)
+            for i in range(n):
+                s1 = slots[i]
+                overlaps = []
+                for j in range(i + 1, n):
+                    s2 = slots[j]
+                    if s2.start_time >= s1.end_time:
+                        break
+                    if s1.start_time < s2.end_time and s1.end_time > s2.start_time:
+                        overlaps.append(s2.id)
+                if overlaps:
+                    results.append({
+                        "slot_id": s1.id,
+                        "stage": s1.stage.name,
+                        "day": str(s1.day),
+                        "range": [str(s1.start_time), str(s1.end_time)],
+                        "overlaps_with": overlaps,
+                    })
+        return Response({"edition": edition, "conflicts": results})
 
     @action(methods=["POST"], detail=False, url_path="template/copy")
     def template_copy(self, request):

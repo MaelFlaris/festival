@@ -100,6 +100,12 @@ WSGI_APPLICATION = "festival_backend.wsgi.application"
 ASGI_APPLICATION = "festival_backend.asgi.application"
 
 # ---------------------------------------------------------------------
+# Auth redirects (browsable API UX)
+# ---------------------------------------------------------------------
+LOGIN_REDIRECT_URL = "/api/v1/"
+LOGOUT_REDIRECT_URL = "/api/v1/"
+
+# ---------------------------------------------------------------------
 # DB
 # ---------------------------------------------------------------------
 DATABASES = {
@@ -192,6 +198,7 @@ SCHEDULE_ICS_CACHE_TTL = int(os.getenv("SCHEDULE_ICS_CACHE_TTL", "120"))
 SPONSORS_PUBLIC_CACHE_TTL = int(os.getenv("SPONSORS_PUBLIC_CACHE_TTL", "300"))
 TICKETS_ON_SALE_CACHE_TTL = int(os.getenv("TICKETS_ON_SALE_CACHE_TTL", "120"))
 TICKETS_RESERVE_RATE_LIMIT_PER_MIN = int(os.getenv("TICKETS_RESERVE_RATE_LIMIT_PER_MIN", "30"))
+COMMON_WEBHOOK_TIMEOUT = int(os.getenv("COMMON_WEBHOOK_TIMEOUT", "5"))
 
 # S3 pour sponsors (facultatif)
 SPONSORS_S3_BUCKET = os.getenv("SPONSORS_S3_BUCKET")

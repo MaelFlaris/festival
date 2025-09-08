@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Dict
+import csv
+import io
+from django.http import HttpResponse
 
 from django.conf import settings
 from django.core.cache import cache
@@ -43,6 +46,54 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
         data = [TicketTypeSerializer(t).data for t in qs if t.is_on_sale()]
         cache.set(key, data, ttl)
         return Response(data)
+
+    # -------- Export CSV --------
+    @action(methods=["GET"], detail=False, url_path=r"export\.csv")
+    def export_csv(self, request):
+        qs = self.get_queryset()
+        edition = request.query_params.get("edition")
+        on_sale = request.query_params.get("on_sale")
+        if edition:
+            qs = qs.filter(edition_id=edition)
+        if on_sale is not None:
+            want = str(on_sale).lower() in {"1", "true", "yes", "on"}
+            qs = [t for t in qs if t.is_on_sale()] if want else [t for t in qs if not t.is_on_sale()]
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "id", "edition", "code", "name", "phase", "day",
+            "price_ttc", "price_net", "price_vat_amount", "currency", "vat_rate",
+            "quota_total", "quota_reserved", "quota_remaining", "sale_start", "sale_end",
+            "is_active", "is_on_sale"
+        ])
+        iterable = qs if isinstance(qs, list) else qs.iterator()
+        for t in iterable:
+            writer.writerow([
+                t.id,
+                t.edition_id,
+                t.code,
+                t.name,
+                t.phase,
+                t.day.isoformat() if t.day else "",
+                float(t.price),
+                float(t.price_net),
+                float(t.price_vat_amount),
+                t.currency,
+                float(t.vat_rate),
+                int(t.quota_total),
+                int(t.quota_reserved),
+                int(t.quota_remaining),
+                t.sale_start.isoformat() if t.sale_start else "",
+                t.sale_end.isoformat() if t.sale_end else "",
+                1 if t.is_active else 0,
+                1 if t.is_on_sale() else 0,
+            ])
+        data = output.getvalue()
+        filename = f"ticket_types_{edition or 'all'}.csv"
+        resp = HttpResponse(data, content_type="text/csv; charset=utf-8")
+        resp["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+        return resp
 
     # -------- Reserve (anti-fraud: rate limit) --------
     @action(methods=["POST"], detail=True, url_path="reserve")

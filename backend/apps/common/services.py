@@ -6,8 +6,10 @@ import hashlib
 import hmac
 import json
 import math
+import logging
 from typing import Iterable, Optional
 from urllib import request as _urlreq, error as _urlerr
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.db.models import Model
@@ -162,6 +164,7 @@ def dispatch_webhook(event: str, payload: dict) -> None:
     - Ajoute en-têtes: Content-Type, X-Common-Event, X-Common-Signature (si secret).
     - Best-effort, exceptions capturées.
     """
+    logger = logging.getLogger(__name__)
     urls: Iterable[str] = getattr(settings, "COMMON_WEBHOOK_URLS", []) or []
     if not urls:
         return
@@ -169,15 +172,31 @@ def dispatch_webhook(event: str, payload: dict) -> None:
     data = json.dumps(payload).encode("utf-8")
     secret = getattr(settings, "COMMON_WEBHOOK_SECRET", None)
     signature = _build_signature(secret, data) if secret else None
+    timeout = int(getattr(settings, "COMMON_WEBHOOK_TIMEOUT", 5) or 5)
 
     for url in urls:
+        # Validate scheme http/https
+        try:
+            scheme = (urlparse(url).scheme or "").lower()
+        except Exception:
+            scheme = ""
+        if scheme not in {"http", "https"}:
+            logger.warning("dispatch_webhook: ignored URL with invalid scheme: %s", url)
+            continue
+
         req = _urlreq.Request(url, data=data, method="POST")
         req.add_header("Content-Type", "application/json")
         req.add_header("X-Common-Event", event)
         if signature:
             req.add_header("X-Common-Signature", signature)
-        try:
-            _urlreq.urlopen(req, timeout=5)  # pas bloquant long
-        except _urlerr.URLError:
-            # Ne pas remonter pour ne pas casser le flux applicatif
-            continue
+        # One retry on transient failure
+        attempts = 2
+        for i in range(attempts):
+            try:
+                _urlreq.urlopen(req, timeout=timeout)
+                break
+            except Exception as exc:  # pragma: no cover (errors are environment dependent)
+                if i == attempts - 1:
+                    logger.warning("dispatch_webhook failed for %s: %s", url, exc)
+                # Never raise to caller
+                continue

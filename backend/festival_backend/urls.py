@@ -58,6 +58,7 @@ urlpatterns = [
     path("api/v1/health/", health),
 
     # DRF login pour le browsable API
+    path("api-auth/", lambda r: redirect("rest_framework:login")),  # /api-auth/ -> /api-auth/login/
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
 
     # métriques
