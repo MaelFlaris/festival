@@ -83,7 +83,7 @@ class ScheduleTests(TestCase):
         )
         # crée destination au lendemain
         ed2 = FestivalEdition.objects.create(
-            name="Test2", year=self.ed.year, start_date=d, end_date=d, tagline="", hero_image="", is_active=False
+            name="Test2", year=self.ed.year + 1, start_date=d, end_date=d, tagline="", hero_image="", is_active=False
         )
         url = reverse("schedule-slots-template-copy")
         res = self.client.post(url, {"from_edition": self.ed.id, "to_edition": ed2.id, "dry_run": True}, format="json")

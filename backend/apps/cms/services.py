@@ -30,7 +30,7 @@ def markdown_to_html_safe(md_text: str) -> str:
     try:
         import bleach
         allowed_tags = bleach.sanitizer.ALLOWED_TAGS.union({"p", "pre", "span", "h1","h2","h3","h4","h5","h6","img","hr","br","ul","ol","li","code","blockquote"})
-        allowed_attrs = {"a": ["href", "title", "rel"], "img": ["src", "alt", "title"], "*": ["id", "class"]}
+        allowed_attrs = {"a": ["href", "title", "rel"], "img": ["src", "alt", "title"]}
         clean = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs, strip=True)
         # Lien safe
         clean = bleach.linkify(clean)

@@ -19,3 +19,17 @@ class SlotSerializer(serializers.ModelSerializer):
             "status", "is_headliner", "setlist_urls", "tech_rider",
             "notes", "duration_minutes", "created_at", "updated_at"
         )
+
+    def validate(self, attrs):
+        edition = attrs.get("edition") or getattr(self.instance, "edition", None)
+        day = attrs.get("day") or getattr(self.instance, "day", None)
+        start = attrs.get("start_time") or getattr(self.instance, "start_time", None)
+        end = attrs.get("end_time") or getattr(self.instance, "end_time", None)
+        errors = {}
+        if start and end and end <= start:
+            errors["end_time"] = "must be after start_time"
+        if edition and day and not (edition.start_date <= day <= edition.end_date):
+            errors["day"] = "must be within edition"
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs

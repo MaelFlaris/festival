@@ -37,7 +37,8 @@ class LineupBasicTests(TestCase):
         url = reverse("lineup-artists-list")
         res = self.client.get(url, {"available_on": str(d)})
         self.assertEqual(res.status_code, 200)
-        names = [x["name"] for x in res.data]
+        items = res.data["results"] if isinstance(res.data, dict) else res.data
+        names = [x["name"] for x in items]
         self.assertIn("Beta", names)
         self.assertNotIn("Alpha", names)
 
