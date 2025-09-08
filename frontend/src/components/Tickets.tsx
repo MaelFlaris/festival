@@ -1,65 +1,32 @@
-import { useEffect, useState } from 'react'
-
-interface Ticket {
-  id: number
-  type: string
-  price: number
-  available: boolean
-}
+import { useState } from 'react'
+import { useOnSaleTickets, reserveTicket } from '../api/tickets'
 
 export default function Tickets() {
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: tickets, isLoading, error } = useOnSaleTickets()
   const [message, setMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    fetch('/api/tickets', {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      credentials: 'include',
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Network response was not ok')
-        return res.json()
-      })
-      .then((data) => setTickets(data))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const buyTicket = (id: number) => {
+  const handleReserve = (id: number) => {
     setMessage(null)
-    const token = localStorage.getItem('token')
-    fetch(`/api/tickets/${id}/purchase`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      credentials: 'include',
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Purchase failed')
-        return res.json()
-      })
-      .then(() => setMessage('Ticket purchased successfully'))
-      .catch((err) => setMessage(err.message))
+    reserveTicket(id, 1, false)
+      .then((res) =>
+        setMessage(`Reserved ${res.reserved}, remaining ${res.available}`),
+      )
+      .catch(() => setMessage('Reservation failed'))
   }
 
-  if (loading) return <p>Loading tickets...</p>
-  if (error) return <p>Error: {error}</p>
+  if (isLoading) return <p>Loading tickets...</p>
+  if (error) return <p>Error loading tickets</p>
 
   return (
     <div>
       <h2>Tickets</h2>
       {message && <p>{message}</p>}
       <ul>
-        {tickets.map((ticket) => (
+        {tickets?.map((ticket) => (
           <li key={ticket.id}>
-            {ticket.type} - {ticket.price}€
-            {ticket.available ? (
-              <button onClick={() => buyTicket(ticket.id)}>Buy</button>
+            {ticket.name} - {ticket.price} {ticket.currency}
+            {ticket.is_active ? (
+              <button onClick={() => handleReserve(ticket.id)}>Reserve</button>
             ) : (
               <span> Sold out</span>
             )}
