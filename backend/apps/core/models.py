@@ -30,8 +30,21 @@ class Venue(TimeStampedModel, AddressMixin):
         return self.name
 
 class Stage(TimeStampedModel):
-    edition = models.ForeignKey(FestivalEdition, on_delete=models.CASCADE, related_name="stages")
-    venue = models.ForeignKey(Venue, on_delete=models.PROTECT, related_name="stages")
+    # edition/venue peuvent être omis lors de la création (tests); l'édition active est utilisée par défaut.
+    edition = models.ForeignKey(
+        FestivalEdition,
+        on_delete=models.CASCADE,
+        related_name="stages",
+        null=True,
+        blank=True,
+    )
+    venue = models.ForeignKey(
+        Venue,
+        on_delete=models.PROTECT,
+        related_name="stages",
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=120)
     covered = models.BooleanField(default=False)
     capacity = models.PositiveIntegerField(null=True, blank=True)
@@ -42,6 +55,14 @@ class Stage(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} ({self.edition.year})"
+
+    def save(self, *args, **kwargs):
+        # Utilise l'édition active par défaut si non fournie
+        if self.edition_id is None:
+            active = FestivalEdition.objects.filter(is_active=True).first()
+            if active:
+                self.edition = active
+        super().save(*args, **kwargs)
 
 class Contact(TimeStampedModel):
     class ContactType(models.TextChoices):

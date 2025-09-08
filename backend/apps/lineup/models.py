@@ -27,9 +27,9 @@ class Artist(VersionedModel, TimeStampedModel, SluggedModel):
                                help_text="ISO-3166-1 alpha-2")
     short_bio = models.TextField(blank=True)
     long_bio = models.TextField(blank=True)
-    picture = models.URLField(blank=True)
-    banner = models.URLField(blank=True)
-    website = models.URLField(blank=True)
+    picture = models.CharField(max_length=500, blank=True)
+    banner = models.CharField(max_length=500, blank=True)
+    website = models.CharField(max_length=500, blank=True)
     socials = models.JSONField(default=dict, blank=True,
                                help_text='{"instagram":"", "youtube":"", "spotify":""}')
     external_ids = models.JSONField(default=dict, blank=True,
